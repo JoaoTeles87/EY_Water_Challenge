@@ -1,0 +1,25 @@
+==============================
+Experiment: Day 1 Baseline (Initial Run)
+Features: Cyclical Month, Landsat, TerraClimate
+CV Strategy: Spatial Group K-Fold (5 splits)
+RMSE per Target (Alk, Cond, Phos): [High Variance - Estimating ~161.0]
+Overall Mean RMSE: 161.0 (Approx from first run output)
+Notes: Baseline established. Focus on improving Feature Engineering (Turbidity) next.
+==============================
+
+==============================
+Experiment: Day 1 Baseline (XGBoost)
+Features: Cyclical Month, Landsat, TerraClimate
+CV Strategy: Spatial Group K-Fold (5 splits)
+RMSE per Target (Alk, Cond, Phos): [ 78.28 354.08  50.73]
+Overall Mean RMSE: 161.0293
+==============================
+
+==============================
+Experiment: Day 1 Baseline (XGBoost) - Refactored
+Timestamp: 2026-01-21T11:59:12.425580
+Features: Cyclical Month, Landsat, TerraClimate
+CV Strategy: Spatial Group K-Fold (5 splits)
+RMSE per Target (Alk, Cond, Phos): [ 78.28 354.08  50.73]
+Overall Mean RMSE: 161.0293
+==============================
