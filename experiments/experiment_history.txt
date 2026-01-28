@@ -23,3 +23,21 @@ CV Strategy: Spatial Group K-Fold (5 splits)
 RMSE per Target (Alk, Cond, Phos): [ 78.28 354.08  50.73]
 Overall Mean RMSE: 161.0293
 ==============================
+
+==============================
+Experiment: Day 1 Baseline (XGBoost) - Refactored
+Timestamp: 2026-01-27T23:48:34.285323
+Features: Cyclical Month, Landsat, TerraClimate
+CV Strategy: Spatial Group K-Fold (5 splits)
+RMSE per Target (Alk, Cond, Phos): [ 78.28 354.08  50.73]
+Overall Mean RMSE: 161.0293
+==============================
+
+==============================
+Experiment: Day 1 Baseline (XGBoost) - Refactored
+Timestamp: 2026-01-27T23:54:28.004894
+Features: Cyclical Month, Landsat, TerraClimate
+CV Strategy: Spatial Group K-Fold (5 splits)
+RMSE per Target (Alk, Cond, Phos): [ 78.59 347.05  50.11]
+Overall Mean RMSE: 158.5824
+==============================

@@ -1,0 +1,12 @@
+--- Data Shapes ---
+Water Quality (Targets): (9319, 6)
+Landsat (Features): (9319, 9)
+TerraClimate (Features): (9319, 4)
+
+--- Columns ---
+Landsat Columns: ['Latitude', 'Longitude', 'Sample Date', 'nir', 'green', 'swir16', 'swir22', 'NDMI', 'MNDWI']
+TerraClimate Columns: ['Latitude', 'Longitude', 'Sample Date', 'pet']
+
+--- Merge Analysis ---
+Merged (Inner Join with Landsat): (9319, 16)
+Rows Lost: 0 (0.00%)

@@ -69,6 +69,26 @@ def create_features(df):
     df['month_sin'] = np.sin(2 * np.pi * df['Month'] / 12)
     df['month_cos'] = np.cos(2 * np.pi * df['Month'] / 12)
     
+    # 3.1 Advanced Features (Physics-Informed)
+    # Digital Year (Trend Analysis)
+    df['digital_year'] = df['Sample Date'].dt.year + (df['Sample Date'].dt.dayofyear / 365.0)
+    
+    # SWIR Ratio (Salinity/Mineral Proxy)
+    # Add epsilon to avoid division by zero
+    epsilon = 1e-6
+    df['swir_ratio'] = df['swir16'] / (df['swir22'] + epsilon)
+    
+    # NIR / Green Ratio (Algae vs Sediment)
+    df['nir_green_ratio'] = df['nir'] / (df['green'] + epsilon)
+    
+    # Evaporation Concentration (Pollutant Concentration)
+    # Logic: High Evap (pet) + Low Water (MNDWI) -> Higher Concentration
+    # MNDWI is typically -1 to 1. Adding 1.1 ensures positive denominator.
+    df['evap_concentration'] = df['pet'] / (df['MNDWI'] + 1.1)
+    
+    # Clean up Infs (if any slipped through)
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    
     # Drop non-numeric for X (keeping identifiers for grouping if needed)
     drop_cols = ['Latitude', 'Longitude', 'Sample Date', 'lat_rounded', 'lon_rounded', 
                  'Latitude_landsat', 'Longitude_landsat', 'Latitude_climate', 'Longitude_climate', 'Month']
@@ -178,6 +198,85 @@ def train_and_evaluate(df, drop_cols):
     
     return pipeline
 
+def generate_submission(model, drop_cols):
+    print("\nStarting Submission Generation...")
+    base_path = "data" if os.path.exists("data") else "../data"
+    
+    # 1. Load Template and Validation Features
+    sub_df = pd.read_csv(os.path.join(base_path, 'submission_template.csv'))
+    landsat_val = pd.read_csv(os.path.join(base_path, 'landsat_features_validation.csv'))
+    climate_val = pd.read_csv(os.path.join(base_path, 'terraclimate_features_validation.csv'))
+    
+    print(f"Template Shape: {sub_df.shape}")
+    
+    # 2. Preprocess (Round Coords + Date)
+    for df in [sub_df, landsat_val, climate_val]:
+        df['lat_rounded'] = df['Latitude'].round(4)
+        df['lon_rounded'] = df['Longitude'].round(4)
+        df['Sample Date'] = pd.to_datetime(df['Sample Date'], dayfirst=True)
+
+    # 3. Merge (Same strategy as training)
+    # Inner Join with Landsat
+    merged_sub = pd.merge(
+        sub_df, 
+        landsat_val, 
+        on=['lat_rounded', 'lon_rounded', 'Sample Date'], 
+        how='inner',
+        suffixes=('', '_landsat')
+    )
+    
+    # Left Join with TerraClimate
+    merged_sub = pd.merge(
+        merged_sub, 
+        climate_val, 
+        on=['lat_rounded', 'lon_rounded', 'Sample Date'], 
+        how='left',
+        suffixes=('', '_climate')
+    )
+    
+    print(f"Merged Submission Shape: {merged_sub.shape}")
+    
+    # 4. Feature Engineering (Same function)
+    # Note: create_features expects 'Month' which is derived from 'Sample Date'
+    merged_sub, _ = create_features(merged_sub)
+    
+    # 5. Prepare X (Features only)
+    targets = ['Total Alkalinity', 'Electrical Conductance', 'Dissolved Reactive Phosphorus']
+    
+    # Ensure we use exactly the same columns as training
+    # We need to drop targets from the dataframe if they exist (they verify 200 rows)
+    # But in template they are empty or placeholder, so just ensure we don't include them in X
+    
+    # Construct X using the pipeline's feature names? 
+    # The pipeline handles raw input, but we need to ensure columns match.
+    # We used drop_cols in training to remove non-features. We do the same here.
+    # Also drop spatial_group if it was added (it's not needed for prediction if not used as feature)
+    # If the model uses spatial_group as feature, we need to generate it.
+    # In training: X = df.drop(columns=targets + drop_cols + ['spatial_group'])
+    # So spatial_group is NOT a feature.
+    
+    X_sub = merged_sub.drop(columns=targets + drop_cols, errors='ignore')
+    
+    # Check for NaNs
+    if X_sub.isna().any().any():
+        print("Warning: NaNs found in submission features. Pipeline imputer will handle them.")
+        
+    # 6. Predict
+    predictions = model.predict(X_sub)
+    
+    # 7. Post-process (Clip negatives)
+    predictions = np.maximum(predictions, 0)
+    
+    # 8. Create Submission File
+    submission = sub_df[['Latitude', 'Longitude', 'Sample Date']].copy()
+    submission[targets] = predictions
+    
+    # Save
+    save_path = "submission.csv"
+    submission.to_csv(save_path, index=False)
+    print(f"Submission saved to: {os.path.abspath(save_path)}")
+    print(submission.head())
+
 if __name__ == "__main__":
     # Execution Flow
     data = load_and_preprocess_data()
@@ -185,4 +284,20 @@ if __name__ == "__main__":
     data = get_spatial_groups(data)
     
     model = train_and_evaluate(data, drop_cols)
+    
+    # Generate Submission
+    # We use the fitted pipeline 'model'
+    # Important: The 'model' returned by train_and_evaluate is trained on the LAST fold in the loop?
+    # Actually, inside the loop it fits on train_idx.
+    # Refitting on FULL data is best practice for submission.
+    
+    print("\nRefitting model on FULL dataset for submission...")
+    targets = ['Total Alkalinity', 'Electrical Conductance', 'Dissolved Reactive Phosphorus']
+    X_full = data.drop(columns=targets + drop_cols + ['spatial_group'])
+    y_full = data[targets]
+    
+    model.fit(X_full, y_full)
+    
+    generate_submission(model, drop_cols)
+    
     print("\nBaseline Pipeline Completed successfully.")
